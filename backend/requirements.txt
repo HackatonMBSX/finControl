@@ -1,0 +1,9 @@
+# Dependências de produção da API, com versões fixas.
+# Instaladas pelo Dockerfile; requirements-dev.txt inclui esta lista.
+fastapi==0.152.0  # framework web das rotas e do Swagger
+uvicorn[standard]==0.54.0  # servidor que roda a API
+pydantic-settings==2.16.1  # lê as configurações das variáveis de ambiente e do .env
+appwrite==25.0.0  # cliente do Appwrite (banco e contas)
+PyJWT==2.15.1  # cria e confere os tokens JWT de login
+email-validator==2.3.0  # valida e-mails nos modelos do Pydantic
+cryptography==46.0.7  # cifra a chave de API do Asaas
