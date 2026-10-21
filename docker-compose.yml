@@ -159,7 +159,9 @@ services:
       - traefik.constraint-label-stack=appwrite
       - traefik.http.services.appwrite_console.loadbalancer.server.port=3000
       - traefik.http.routers.appwrite_console.entrypoints=appwrite_web
-      - traefik.http.routers.appwrite_console.rule=(Host(`${APPWRITE_DOMAIN:-localhost}`)) && !PathPrefix(`/v1`) && !PathPrefix(`/.well-known`) && !HeaderRegexp(`x-appwrite-hostname`, `.+`)
+      # sem Host(): o Coolify pode escapar o $ dos labels e a regra nunca casaria; este Traefik so atende o dominio do proprio Appwrite
+      - traefik.http.routers.appwrite_console.rule=!PathPrefix(`/v1`) && !PathPrefix(`/.well-known`) && !HeaderRegexp(`x-appwrite-hostname`, `.+`)
+      - traefik.http.routers.appwrite_console.priority=100
       - traefik.http.routers.appwrite_console.service=appwrite_console
 
   appwrite-worker:               # filas: criação de índices, exclusão de usuários, e-mails, auditoria...
