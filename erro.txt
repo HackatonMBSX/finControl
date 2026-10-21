@@ -1,0 +1,14 @@
+Request URL
+http://0zpnusz5dwh7zpy0al4ciq4u.179.236.78.102.sslip.io/
+Request method
+GET
+Status code
+404 Not Found
+Remote address
+179.236.78.102:80
+Referrer policy
+no-referrer
+access-control-allow-credentials
+true
+access-control-allow-headers
+Accept, Origin, Cookie, Set-Cookie, Content-Type, Content-Range, X-Appwrite-Project, X-Appwrite-Key, X-Appwrite-Locale, X-Appwrite-Mode, X-Appwrite-JWT, X-Appwrite-Organization, X-Appwrite-Response-Format, X-Appwrite-Timeout, X-Appwrite-ID, X-Appwrite-Timestamp, X-Appwrite-Sessio
