@@ -1,0 +1,232 @@
+# FinControl — stack completa (front + API + Appwrite) em UM arquivo, igual no uso local e no Coolify.
+#   Local:   cp .env.example .env  → preencher os 3 segredos  → docker compose up -d --build
+#   Coolify: recurso "Docker Compose" apontando para o repositório; colar o .env em Environment Variables;
+#            domínios:  web → porta 80 (o app)  |  api → porta 8000 (a API; Swagger em /docs)  |  traefik → porta 80 (console do Appwrite).
+#            Comando de start: o padrão.
+# As portas publicadas (app 8090, API 8091, console 8081) ficam só em 127.0.0.1 e usam números que o Coolify não ocupa na VPS
+# (ele usa 80, 443, 8000 e 8080): servem ao uso local e não expõem nada lá, onde o acesso é pelo domínio.
+# Appwrite 2.5 com MongoDB (DocumentsDB). Fora do compose oficial: functions/sites, browser, mqtt, autogravity, clickhouse, realtime e tasks.
+
+x-appwrite-env: &appwrite-env
+  _APP_ENV: production
+  _APP_EDITION: self-hosted
+  _APP_LOCALE: en
+  _APP_LOGGING_FORMAT: pretty
+  _APP_DOMAIN: ${APPWRITE_DOMAIN:-localhost}
+  _APP_CONSOLE_DOMAIN: ${APPWRITE_DOMAIN:-localhost}
+  _APP_CONSOLE_HOSTNAMES: ${APPWRITE_DOMAIN:-localhost}
+  _APP_DOMAIN_FUNCTIONS: functions.${APPWRITE_DOMAIN:-localhost}
+  _APP_DOMAIN_SITES: sites.${APPWRITE_DOMAIN:-localhost}
+  _APP_DOMAIN_TARGET_A: 127.0.0.1
+  _APP_DOMAIN_TARGET_AAAA: "::1"
+  _APP_DOMAIN_TARGET_CNAME: localhost
+  _APP_DOMAIN_TARGET_CAA: digicert.com
+  _APP_RULES_FORMAT: md5
+  _APP_OPTIONS_FORCE_HTTPS: disabled          # o HTTPS é do proxy do Coolify
+  _APP_OPTIONS_ROUTER_FORCE_HTTPS: disabled
+  _APP_OPTIONS_ROUTER_PROTECTION: disabled
+  _APP_OPTIONS_ABUSE: enabled
+  _APP_OPTIONS_ABUSE_INCREASED_LIMIT_PROJECTS: increased-limit-project
+  _APP_TRUSTED_HEADERS: x-forwarded-for
+  _APP_TRUSTED_PROXIES: "127.0.0.1,::1,10.0.0.0/8,100.64.0.0/10,172.16.0.0/12,192.168.0.0/16"
+  _APP_COMPRESSION_ENABLED: enabled
+  _APP_COMPRESSION_MIN_SIZE_BYTES: 1024
+  _APP_WORKER_PER_CORE: 2
+  _APP_WORKERS_NUM: 1
+  _APP_WORKER_MAX_COROUTINES: 1
+  _APP_CONSOLE_SCHEMA: appwriteio
+  _APP_CONSOLE_SESSION_ALERTS: enabled
+  _APP_CONSOLE_WHITELIST_ROOT: enabled        # só o 1º cadastro no console vira admin; depois o cadastro fecha
+  _APP_SYSTEM_EMAIL_NAME: Appwrite
+  _APP_SYSTEM_EMAIL_ADDRESS: noreply@appwrite.io
+  _APP_SYSTEM_TEAM_EMAIL: team@appwrite.io
+  _APP_EMAIL_SECURITY: security@appwrite.io
+  _APP_EMAIL_CERTIFICATES: certificates@appwrite.io
+  _APP_PWNED_PASSWORDS_DSN: none://localhost
+  _APP_GRAPHQL_INTROSPECTION: enabled
+  _APP_GRAPHQL_MAX_BATCH_SIZE: 10
+  _APP_GRAPHQL_MAX_COMPLEXITY: 250
+  _APP_GRAPHQL_MAX_DEPTH: 4
+  _APP_WEBHOOK_MAX_FAILED_ATTEMPTS: 10
+  _APP_STORAGE_DEVICE: Local
+  _APP_STORAGE_LIMIT: 30000000
+  _APP_STORAGE_PREVIEW_LIMIT: 20000000
+  _APP_USAGE_STATS: disabled                  # estatísticas de uso precisariam do ClickHouse
+  # segredos (um valor só, APPWRITE_SECRET, para os cinco)
+  _APP_OPENSSL_KEY_V1: ${APPWRITE_SECRET:?defina APPWRITE_SECRET (openssl rand -hex 24)}
+  _APP_NOTIFICATIONS_TRACKING_SECRET: ${APPWRITE_SECRET}
+  _APP_GEO_SECRET: ${APPWRITE_SECRET}
+  _APP_GEO_ENDPOINT: http://appwrite-geo/v1
+  # banco: MongoDB para tudo (o VECTORSDB não é usado, mas o Appwrite espera o endereço)
+  _APP_DB_ADAPTER: mongodb
+  _APP_DB_HOST: mongodb
+  _APP_DB_PORT: 27017
+  _APP_DB_SCHEMA: appwrite
+  _APP_DB_USER: appwrite
+  _APP_DB_PASS: ${DB_PASSWORD:?defina DB_PASSWORD (openssl rand -hex 24)}
+  _APP_DB_ADAPTER_DOCUMENTSDB: mongodb
+  _APP_DOCUMENTSDB: enabled
+  _APP_DB_HOST_DOCUMENTSDB: mongodb
+  _APP_DB_PORT_DOCUMENTSDB: 27017
+  _APP_DB_ADAPTER_VECTORSDB: postgresql
+  _APP_DB_HOST_VECTORSDB: postgresql
+  _APP_DB_PORT_VECTORSDB: 5432
+  _APP_REDIS_HOST: redis
+  _APP_REDIS_PORT: 6379
+
+services:
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8090}:80"          # app local: http://localhost:8090
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${API_PORT:-8091}:8000"        # API local: http://localhost:8091 (abre o Swagger; também em /health, /ready, /version)
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      REPOSITORY_BACKEND: appwrite
+      APPWRITE_ENDPOINT: http://appwrite/v1
+      APPWRITE_DATABASE_ID: fincontrol
+      APPWRITE_PROJECT_ID: ${APPWRITE_PROJECT_ID:-}
+      APPWRITE_API_KEY: ${APPWRITE_API_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET (openssl rand -hex 32)}
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
+      ENABLE_DOCS: ${ENABLE_DOCS:-true}            # Swagger em /docs (false desliga)
+    depends_on:
+      - appwrite        # não espera o "healthy": a API tenta de novo sozinha, e um Appwrite lento não derruba o deploy
+
+  # ---- Appwrite -------------------------------------------------------------
+  traefik:                       # roteador interno do Appwrite: separa console (/) e API (/v1)
+    image: traefik:3.6
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedByDefault=false
+      - --providers.docker.constraints=Label(`traefik.constraint-label-stack`,`appwrite`)
+      - --entrypoints.appwrite_web.address=:80
+    ports:
+      - "127.0.0.1:${APPWRITE_PORT:-8081}:80"     # console local do Appwrite: http://localhost:8081
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - appwrite
+
+  appwrite:
+    image: appwrite/appwrite:2.5.0
+    restart: unless-stopped
+    environment: *appwrite-env
+    volumes:
+      - appwrite-uploads:/storage/uploads
+      - appwrite-cache:/storage/cache
+      - appwrite-config:/storage/config
+      - appwrite-certificates:/storage/certificates
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      appwrite-geo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null -H \"Host: $${_APP_DOMAIN}\" http://localhost/v1/health/version"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 120s
+    labels:
+      - traefik.enable=true
+      - traefik.constraint-label-stack=appwrite
+      - traefik.http.services.appwrite_api.loadbalancer.server.port=80
+      - traefik.http.routers.appwrite_api.entrypoints=appwrite_web
+      - traefik.http.routers.appwrite_api.rule=PathPrefix(`/`)
+      - traefik.http.routers.appwrite_api.service=appwrite_api
+
+  appwrite-console:
+    image: appwrite/new:1.2.74-self-hosted
+    restart: unless-stopped
+    environment:
+      VITE_CONSOLE_PROFILE: self-hosted
+      APPWRITE_ENDPOINT_SAME_ORIGIN: "true"
+    labels:
+      - traefik.enable=true
+      - traefik.constraint-label-stack=appwrite
+      - traefik.http.services.appwrite_console.loadbalancer.server.port=3000
+      - traefik.http.routers.appwrite_console.entrypoints=appwrite_web
+      - traefik.http.routers.appwrite_console.rule=(Host(`${APPWRITE_DOMAIN:-localhost}`)) && !PathPrefix(`/v1`) && !PathPrefix(`/.well-known`) && !HeaderRegexp(`x-appwrite-hostname`, `.+`)
+      - traefik.http.routers.appwrite_console.service=appwrite_console
+
+  appwrite-worker:               # filas: criação de índices, exclusão de usuários, e-mails, auditoria...
+    image: appwrite/appwrite:2.5.0
+    entrypoint: worker
+    restart: unless-stopped
+    environment: *appwrite-env
+    volumes:
+      - appwrite-uploads:/storage/uploads
+      - appwrite-cache:/storage/cache
+      - appwrite-config:/storage/config
+      - appwrite-certificates:/storage/certificates
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  appwrite-geo:
+    image: appwrite/geo:0.3.2
+    restart: unless-stopped
+    environment:
+      GEO_SECRET: ${APPWRITE_SECRET}
+    healthcheck:
+      test: ["CMD-SHELL", "php -r \"exit(json_decode(file_get_contents('http://localhost/v1/health'))->status === 'ok' ? 0 : 1);\""]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  mongodb:                       # MongoDB com auth + replica set (exigência do Appwrite); scripts embutidos na imagem (db/Dockerfile)
+    build: ./db
+    restart: unless-stopped
+    entrypoint: ["/bin/bash", "/mongo-entrypoint.sh"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD (openssl rand -hex 24)}
+      MONGO_INITDB_DATABASE: appwrite
+      MONGO_INITDB_USERNAME: appwrite
+      MONGO_INITDB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mongodb-data:/data/db
+      - mongodb-keyfile:/data/keyfile
+    healthcheck:
+      test: [ "CMD-SHELL", "mongosh -u root -p \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --quiet --eval \"try { const h = db.adminCommand({hello: 1}); if (h.isWritablePrimary && h.setName === 'rs0') quit(0); } catch (e) {} try { rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'mongodb:27017'}]}); } catch (e) {} quit(1);\" 2>/dev/null" ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  redis:
+    image: redis:7.4.7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  mongodb-data:
+  mongodb-keyfile:
+  redis-data:
+  appwrite-uploads:
+  appwrite-cache:
+  appwrite-config:
+  appwrite-certificates:
