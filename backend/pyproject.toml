@@ -1,0 +1,35 @@
+# Configuração do projeto e das ferramentas de desenvolvimento.
+# Define o nome e a versão do Python exigida, e como rodam pytest, ruff e mypy.
+# As dependências ficam em requirements.txt e requirements-dev.txt.
+
+# Identificação do projeto e versão mínima do Python.
+[project]
+name = "fincontrol-api"
+version = "1.0.0"
+requires-python = ">=3.12"
+
+# pytest: pasta dos testes e relatório de cobertura do código em app/.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --cov=app --cov-report=term-missing"
+
+# ruff (formatador e verificador de estilo): linhas de até 120 caracteres, sintaxe do Python 3.12.
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+# Regras do ruff ligadas; B008 fica de fora porque o FastAPI usa Depends() como valor padrão.
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "SIM"]
+ignore = ["B008"]
+
+# Nos testes, o uso de assert é liberado (regra S101).
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+# mypy (checagem de tipos) no modo estrito, ignorando bibliotecas sem tipos.
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = []
+ignore_missing_imports = true

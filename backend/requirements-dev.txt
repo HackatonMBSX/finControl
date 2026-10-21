@@ -1,0 +1,9 @@
+# Dependências de desenvolvimento e testes.
+# Inclui as de produção e acrescenta ferramentas de teste, estilo, tipos e segurança.
+-r requirements.txt  # inclui as dependências de produção
+pytest==9.1.1  # roda os testes
+pytest-cov==7.1.0  # mede a cobertura dos testes
+httpx==0.28.1  # cliente HTTP usado pelo TestClient do FastAPI
+ruff==0.17.1  # formata o código e aponta problemas de estilo
+mypy==2.4.0  # confere os tipos do código
+pip-audit  # procura vulnerabilidades conhecidas nas dependências
