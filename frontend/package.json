@@ -1,0 +1,17 @@
+{
+  "name": "fincontrol-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "FinControl — front vanilla HTML/CSS/JS modular",
+  "scripts": {
+    "dev": "python3 -m http.server 8080",
+    "test": "vitest run",
+    "test:cov": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "2.1.9",
+    "jsdom": "25.0.1",
+    "vitest": "2.1.9"
+  }
+}
