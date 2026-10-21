@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f6fb">
+  <title>FinControl · Gestão Financeira Familiar</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">F</div>
+      <div>
+        <h1 id="viewTitle">Início</h1>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <button class="sound-btn on" id="soundToggle" title="Alertas sonoros">🔔</button>
+      <button class="sound-btn on mes-nav" data-act="mesAnt" title="Mês anterior" aria-label="Mês anterior">‹</button>
+      <button type="button" class="badge-mes" id="mesBadge" data-act="abrirCalendario">—</button>
+      <button class="sound-btn on mes-nav" data-act="mesProx" title="Próximo mês" aria-label="Próximo mês">›</button>
+    </div>
+  </header>
+
+  <main id="app"></main>
+
+  <nav class="tabbar" id="tabbar"></nav>
+
+  <div class="sheet-bg" id="sheetBg"></div>
+
+  <div class="sheet" id="sheet">
+    <div class="sheet-grab"></div>
+
+    <div class="sheet-head">
+      <h3 id="sheetTitle">Título</h3>
+      <button id="sheetClose" type="button">✕</button>
+    </div>
+
+    <div class="sheet-body" id="sheetBody"></div>
+  </div>
+<script type="module" src="./src/main.js"></script>
+
+</body>
+</html>
