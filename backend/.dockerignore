@@ -1,0 +1,19 @@
+# Arquivos que o Docker não envia para dentro do build da imagem.
+# Deixa o build mais rápido e evita levar caches, testes e segredos para a imagem.
+
+# Ambiente virtual local do Python.
+.venv
+# Cache de bytecode do Python.
+__pycache__
+# Cache do pytest.
+.pytest_cache
+# Cache do mypy.
+.mypy_cache
+# Cache do ruff.
+.ruff_cache
+# Testes não vão para a imagem de produção.
+tests
+# Variáveis de ambiente locais, que podem ter segredos.
+.env
+# Relatório de cobertura de testes.
+.coverage
